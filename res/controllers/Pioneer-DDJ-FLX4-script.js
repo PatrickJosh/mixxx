@@ -181,8 +181,8 @@ PioneerDDJFLX4.alpha = 1.0/8;
 PioneerDDJFLX4.beta = PioneerDDJFLX4.alpha/32;
 
 // Multiplier for fast seek through track using SHIFT+JOGWHEEL
-PioneerDDJFLX4.fastSeekScale = 150;
-PioneerDDJFLX4.bendScale = 0.8;
+PioneerDDJFLX4.fastSeekScale = 200;
+PioneerDDJFLX4.bendScale = 0.25;
 
 PioneerDDJFLX4.tempoRanges = [0.06, 0.10, 0.16, 0.25];
 
