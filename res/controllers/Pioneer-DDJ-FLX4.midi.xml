@@ -998,6 +998,28 @@
             </control>
 
             <control>
+                <description>BEAT LEFT + shift - press - toggle depth knob</description>
+                <group>[EffectRack1_EffectUnit1]</group>
+                <key>PioneerDDJFLX4.beatFxLeftShiftPressed</key>
+                <status>0x94</status>
+                <midino>0x66</midino>
+                <options>
+                    <Script-Binding/>
+                </options>
+            </control>
+
+            <control>
+                <description>BEAT RIGHT + shift - press - toggle mix mode</description>
+                <group>[EffectRack1_EffectUnit1]</group>
+                <key>PioneerDDJFLX4.beatFxRightShiftPressed</key>
+                <status>0x94</status>
+                <midino>0x6B</midino>
+                <options>
+                    <Script-Binding/>
+                </options>
+            </control>
+
+            <control>
                 <description>BEAT RIGHT - press - select next effect unit</description>
                 <group>[EffectRack1_EffectUnit1]</group>
                 <key>PioneerDDJFLX4.beatFxRightPressed</key>
