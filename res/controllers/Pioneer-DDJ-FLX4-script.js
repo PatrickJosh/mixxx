@@ -246,6 +246,9 @@ PioneerDDJFLX4.toggleLight = function(midiIn, active) {
     midi.sendShortMsg(midiIn.status, midiIn.data1, active ? 0x7F : 0);
 };
 
+// Toggle for beat fx depth knob
+PioneerDDJFLX4.beatFxKnobWetDry = true;
+
 //
 // Init
 //
@@ -365,7 +368,8 @@ PioneerDDJFLX4.focusedFxGroup = function() {
 };
 
 PioneerDDJFLX4.beatFxLevelDepthRotate = function(_channel, _control, value) {
-    if (PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) {
+    if (((PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) && PioneerDDJFLX4.beatFxKnobWetDry)
+        || (!(PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) && !PioneerDDJFLX4.beatFxKnobWetDry)) {
         engine.softTakeoverIgnoreNextValue("[EffectRack1_EffectUnit1]", "mix");
         engine.setParameter(PioneerDDJFLX4.focusedFxGroup(), "meta", value / 0x7F);
     } else {
@@ -408,10 +412,25 @@ PioneerDDJFLX4.beatFxLeftPressed = function(_channel, _control, value) {
     PioneerDDJFLX4.changeFocusedEffectBy(-1);
 };
 
+PioneerDDJFLX4.beatFxLeftShiftPressed = function(_channel, _control, value) {
+    if (value === 0) { return; }
+
+    PioneerDDJFLX4.beatFxKnobWetDry = !PioneerDDJFLX4.beatFxKnobWetDry;
+};
+
 PioneerDDJFLX4.beatFxRightPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
     PioneerDDJFLX4.changeFocusedEffectBy(1);
+};
+
+PioneerDDJFLX4.beatFxRightShiftPressed = function(_channel, _control, value) {
+    if (value === 0) { return; }
+
+    engine.setValue("[EffectRack1_EffectUnit1]", "mix_mode",
+        !engine.getValue("[EffectRack1_EffectUnit1]", "mix_mode")
+    );
+
 };
 
 PioneerDDJFLX4.beatFxOnOffPressed = function(_channel, _control, value) {
