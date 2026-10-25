@@ -410,6 +410,10 @@ class TraktorMX2Class {
             return;
         }
 
+        if (this.shiftPressed[field.group]) {
+            script.toggleControl(field.group, "quantize");
+            return;
+        }
         if (this.keylockIgnore[field.group]) {
             this.keylockIgnore[field.group] = false;
         } else {
@@ -1438,7 +1442,8 @@ class TraktorMX2Class {
         this.linkOutput("[Channel1]", "sync_enabled", this.outputHandler.bind(this));
         this.linkOutput("[Channel1]", "sync_leader", this.outputHandler.bind(this));
 
-        this.linkOutput("[Channel1]", "keylock", this.outputHandler.bind(this));
+        this.linkOutput("[Channel1]", "keylock", this.keylockOutputHandler.bind(this));
+        engine.makeConnection("[Channel1]", "quantize", this.keylockOutputHandler.bind(this));
 
         this.linkOutput("[Channel1]", "play_indicator", this.outputHandler.bind(this));
         this.linkOutput("[Channel1]", "cue_indicator", this.outputHandler.bind(this));
@@ -1467,7 +1472,8 @@ class TraktorMX2Class {
 
         this.linkOutput("[Channel2]", "sync_enabled", this.outputHandler.bind(this));
         this.linkOutput("[Channel2]", "sync_leader", this.outputHandler.bind(this));
-        this.linkOutput("[Channel2]", "keylock", this.outputHandler.bind(this));
+        this.linkOutput("[Channel2]", "keylock", this.keylockOutputHandler.bind(this));
+        engine.makeConnection("[Channel2]", "quantize", this.keylockOutputHandler.bind(this));
 
         this.linkOutput("[Channel2]", "play_indicator", this.outputHandler.bind(this));
         this.linkOutput("[Channel2]", "cue_indicator", this.outputHandler.bind(this));
@@ -1554,6 +1560,16 @@ class TraktorMX2Class {
 
         this.controller.setOutput(group, key, ledValue, true);
     };
+
+    keylockOutputHandler(_value, group, _key) {
+        const keylockValue = engine.getValue(group, "keylock");
+        const quantizeValue = engine.getValue(group, "quantize");
+
+        const colorConfig = this.outputColorMap[group]?.[quantizeValue ? "quantize" : "keylock"];
+        const ledValue = keylockValue ? colorConfig.full : colorConfig.dim;
+
+        this.controller.setOutput(group, "keylock", ledValue, true);
+    }
 
     padOutputHandler(value, group, key) {
         // Custom value for multi-colored LEDs
@@ -1789,10 +1805,12 @@ class TraktorMX2Class {
         this.controller.setOutput("[Channel1]", "loops", getColorValue("[Channel1]", "loops", false), false);
         this.controller.setOutput("[Channel2]", "loops", getColorValue("[Channel2]", "loops", false), false);
 
-        current = engine.getValue("[Channel1]", "keylock");
-        this.controller.setOutput("[Channel1]", "keylock", getColorValue("[Channel1]", "keylock", current), false);
-        current = engine.getValue("[Channel2]", "keylock");
-        this.controller.setOutput("[Channel2]", "keylock", getColorValue("[Channel2]", "keylock", current), false);
+        let currentKeylock = engine.getValue("[Channel1]", "keylock");
+        let currentQuantize = engine.getValue("[Channel1]", "quantize");
+        this.controller.setOutput("[Channel1]", "keylock", getColorValue("[Channel1]", currentQuantize ? "quantize" : "keylock", currentKeylock), false);
+        currentKeylock  = engine.getValue("[Channel2]", "keylock");
+        currentQuantize = engine.getValue("[Channel2]", "quantize");
+        this.controller.setOutput("[Channel2]", "keylock", getColorValue("[Channel2]", currentQuantize ? "quantize" : "keylock", currentKeylock), false);
 
         for (let padIdx = 1; padIdx <= 8; padIdx++) {
             if (switchOff) {
@@ -1928,6 +1946,7 @@ class TraktorMX2Class {
                 "sync_enabled": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "sync_leader": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "keylock": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
+                "quantize": {dim: this.baseColors.dimmedGreen, full: this.baseColors.green},
                 "hotcues": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "stems": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "patterns": {dim: this.usePatternModeForSamplers? this.baseColors.dimmedBlue : this.baseColors.off, full: this.usePatternModeForSamplers? this.baseColors.blue : this.baseColors.red},
@@ -1955,6 +1974,7 @@ class TraktorMX2Class {
                 "sync_enabled": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "sync_leader": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "keylock": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
+                "quantize": {dim: this.baseColors.dimmedGreen, full: this.baseColors.green},
                 "hotcues": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "stems": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "patterns": {dim: this.usePatternModeForSamplers? this.baseColors.dimmedBlue : this.baseColors.off, full: this.usePatternModeForSamplers? this.baseColors.blue : this.baseColors.red},
