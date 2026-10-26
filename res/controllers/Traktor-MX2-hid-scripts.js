@@ -70,6 +70,7 @@ class TraktorMX2Class {
 
         this.enableMasterGain = false;
         this.usePatternModeForSamplers = false;
+        this.enableSecondHotcueLayer = false;
 
         // Knob encoder states (hold values between 0x0 and 0xF)
         // Rotate to the right is +1 and to the left is means -1
@@ -115,6 +116,7 @@ class TraktorMX2Class {
 
         this.enableMasterGain = engine.getSetting("enableMasterGain");
         this.usePatternModeForSamplers = engine.getSetting("usePatternModeForSamplers");
+        this.enableSecondHotcueLayer = engine.getSetting("enableSecondHotcueLayer");
 
         this.baseColors = this.getBaseColors();
         this.outputColorMap = this.getOutputColorMap();
@@ -484,21 +486,29 @@ class TraktorMX2Class {
         switch (field.name) {
 
         case "!hotcues":
-            this.padModeState[field.group] = 0;
-            this.outputHandler(1, field.group, "hotcues");
+            if (this.enableSecondHotcueLayer && this.padModeState[field.group] === 0) {
+                this.padModeState[field.group] = 5;
+                this.controller.setOutput(field.group, "hotcues", this.outputColorMap[field.group]?.hotcuesSecondLayer.full, true);
+            } else {
+                this.padModeState[field.group] = 0;
+                this.outputHandler(1, field.group, "hotcues");
+            }
             this.outputHandler(0, field.group, "stems");
             this.outputHandler(0, field.group, "patterns");
             this.outputHandler(0, field.group, "loops");
 
             // Light LEDs (blue for all enabled hotcues, dimmed white for disabled)
-            for (let padIdx = 1; padIdx <= 8; padIdx++) {
-                const active = engine.getValue(field.group, `hotcue_${padIdx}_status`);
-                if (active) {
-                    const color = engine.getValue(field.group, `hotcue_${padIdx}_color`);
-                    const colorValue = this.padColorMap.getValueForNearestColor(color);
-                    this.outputHandler(colorValue, field.group, `pad_${padIdx}`);
-                } else {
-                    this.outputHandler(this.baseColors.dimmedWhite, field.group, `pad_${padIdx}`);
+            {
+                const padOffset = this.padModeState[field.group] === 0 ? 0 : 8;
+                for (let padIdx = 1; padIdx <= 8; ++padIdx) {
+                    const active = engine.getValue(field.group, `hotcue_${padIdx + padOffset}_status`);
+                    if (active) {
+                        const color = engine.getValue(field.group, `hotcue_${padIdx + padOffset}_color`);
+                        const colorValue = this.padColorMap.getValueForNearestColor(color);
+                        this.outputHandler(colorValue, field.group, `pad_${padIdx}`);
+                    } else {
+                        this.outputHandler(this.baseColors.dimmedWhite, field.group, `pad_${padIdx}`);
+                    }
                 }
             }
             break;
@@ -563,11 +573,15 @@ class TraktorMX2Class {
     	}
         switch (this.padModeState[field.group]) {
         case 0:
+        case 5:
             // Hotcues mode
-            if (this.shiftPressed[field.group]) {
-                engine.setValue(field.group, `hotcue_${padNumber}_clear`, field.value);
-            } else {
-                engine.setValue(field.group, `hotcue_${padNumber}_activate`, field.value);
+            {
+                const padOffset = this.padModeState[field.group] === 0 ? 0 : 8;
+                if (this.shiftPressed[field.group]) {
+                    engine.setValue(field.group, `hotcue_${padNumber + padOffset}_clear`, field.value);
+                } else {
+                    engine.setValue(field.group, `hotcue_${padNumber + padOffset}_activate`, field.value);
+                }
             }
             break;
 
@@ -1510,7 +1524,7 @@ class TraktorMX2Class {
 
         this.linkOutput("[Microphone]", "talkover", this.outputHandler.bind(this));
 
-        for (let padIdx = 1; padIdx <= 8; padIdx++) {
+        for (let padIdx = 1; padIdx <= 16; padIdx++) {
             engine.makeConnection("[Channel1]", `hotcue_${padIdx}_status`, this.hotcueOutputHandler.bind(this));
             engine.makeConnection("[Channel2]", `hotcue_${padIdx}_status`, this.hotcueOutputHandler.bind(this));
 
@@ -1696,26 +1710,49 @@ class TraktorMX2Class {
         }
     };
 
+    getHotcuePadNumber(group, name) {
+        const hotcueNum = parseInt(name.split("_")[1]);
+        if (this.padModeState[group] === 0) {
+            if (hotcueNum > 8) {
+                // We are on the first layer, but a hotcue in a higher layer has changed
+                return -1;
+            }
+            return hotcueNum;
+        }
+        if (this.padModeState[group] === 5) {
+            if (hotcueNum <= 8 || hotcueNum > 16) {
+                // We are on the second layer, but a hotcue in a lower or higher layer has changed
+                return -1;
+            }
+            return hotcueNum - 8;
+        }
+        return -1;
+    };
+
     hotcueOutputHandler(value, group, name) {
         // Light button LED only when we are in hotcue mode
-        if (this.padModeState[group] === 0) {
-            const colorKey = name.replace("_status", "_color");
-            const color = engine.getValue(group, colorKey);
-            const padNum = name[7];
-            if (value > 0) {
-                this.padOutputHandler(color, group, `pad_${padNum}`);
-            } else {
-                this.outputHandler(this.baseColors.dimmedWhite, group, `pad_${padNum}`);
-            }
+        const padNum = this.getHotcuePadNumber(group, name);
+        if (padNum === -1) {
+            return;
+        }
+
+        const colorKey = name.replace("_status", "_color");
+        const color = engine.getValue(group, colorKey);
+        if (value > 0) {
+            this.padOutputHandler(color, group, `pad_${padNum}`);
+        } else {
+            this.outputHandler(this.baseColors.dimmedWhite, group, `pad_${padNum}`);
         }
     };
 
     hotcueColorHandler(value, group, name) {
         // Light button LED only when we are in hotcue mode
-        const padNum = name[7];
-        if (this.padModeState[group] === 0) {
-            this.padOutputHandler(value, group, `pad_${padNum}`);
+        const padNum = this.getHotcuePadNumber(group, name);
+        if (padNum === -1) {
+            return;
         }
+
+        this.padOutputHandler(value, group, `pad_${padNum}`);
     };
 
     stemOutputHandler(value, group, name) {
@@ -1966,6 +2003,7 @@ class TraktorMX2Class {
                 "keylock": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "quantize": {dim: this.baseColors.dimmedGreen, full: this.baseColors.green},
                 "hotcues": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
+                "hotcuesSecondLayer": {dim: this.baseColors.dimmedGreen, full: this.baseColors.green}, // Dimmed is not used anywhere
                 "stems": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "patterns": {dim: this.usePatternModeForSamplers? this.baseColors.dimmedBlue : this.baseColors.off, full: this.usePatternModeForSamplers? this.baseColors.blue : this.baseColors.red},
                 "loops": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
@@ -1994,6 +2032,7 @@ class TraktorMX2Class {
                 "keylock": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "quantize": {dim: this.baseColors.dimmedGreen, full: this.baseColors.green},
                 "hotcues": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
+                "hotcuesSecondLayer": {dim: this.baseColors.dimmedGreen, full: this.baseColors.green}, // Dimmed is not used anywhere
                 "stems": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},
                 "patterns": {dim: this.usePatternModeForSamplers? this.baseColors.dimmedBlue : this.baseColors.off, full: this.usePatternModeForSamplers? this.baseColors.blue : this.baseColors.red},
                 "loops": {dim: this.baseColors.dimmedBlue, full: this.baseColors.blue},

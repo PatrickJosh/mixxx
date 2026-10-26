@@ -25,6 +25,13 @@
               default="false"
       />
       <option
+              variable="enableSecondHotcueLayer"
+              label="Enable a second layer of hotcues for being able to access 16 hotcues in total"
+              type="boolean"
+              description="Pressing the hotcue mode button again with switch to the second layer of hotcues"
+              default="false"
+      />
+      <option
               variable="enableMasterGain"
               label="Enable Master Gain – EXPERIMENTAL: IF YOUR VOLUME STARTS FLUCTUATING, TURN THIS OFF!"
               type="boolean"
